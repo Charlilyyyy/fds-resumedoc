@@ -1,0 +1,276 @@
+AI-Resume-Analyzer — 13-Phase Redo Plan
+========================================
+
+Use this as a step-by-step guide if you had to rebuild the project from scratch,
+from the initial idea all the way through final documentation.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 1 — Idea & Problem Definition
+────────────────────────────────────────────────────────────────────────────────
+Goal: Define why the project exists and who it is for.
+
+Tasks:
+  • Identify the problem: job seekers struggle to know if their resume is ATS-friendly
+    and aligned with a target role.
+  • Define the core value: upload a PDF resume, get instant feedback (score, skills,
+    missing keywords, section checks, career suggestions).
+  • Name the project: AI Resume Analyzer.
+  • Sketch the user flow: upload PDF → pick job role → view dashboard results.
+
+Deliverable: One-page problem statement + user persona (e.g. student / junior developer).
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 2 — Feature Planning & Requirements
+────────────────────────────────────────────────────────────────────────────────
+Goal: Lock down what the app must do before writing code.
+
+Tasks:
+  • List must-have features:
+      - PDF resume upload
+      - Skill extraction from resume text
+      - Resume score (0–100)
+      - ATS keyword analysis
+      - Job role matching (Java Developer, Full Stack Developer, Data Analyst)
+      - Resume section detection (Skills, Education, Experience)
+      - Smart suggestions & career roadmap
+      - Interactive dashboard UI with charts
+  • List nice-to-have / future items (user login, OpenAI integration, React frontend).
+  • Define inputs: MultipartFile (PDF) + role (string).
+  • Define outputs: skills list, score, ATS %, match %, section status, suggestions.
+
+Deliverable: Feature checklist and acceptance criteria for each feature.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 3 — Tech Stack & Architecture Design
+────────────────────────────────────────────────────────────────────────────────
+Goal: Choose tools and draw the system layout.
+
+Tasks:
+  • Backend: Java 17, Spring Boot 3, Spring MVC, Maven.
+  • PDF parsing: Apache PDFBox.
+  • Frontend: HTML5, CSS3, JavaScript, Chart.js (served from src/main/resources/static).
+  • Optional persistence: Spring Data JPA + MySQL (model/repository scaffold exists).
+  • Design layers:
+      Controller  →  Service  →  (Repository / Model if persisting)
+  • API design: POST /resume/upload  (file + role) → plain-text or JSON response.
+  • Draw a simple flow: Browser → Controller → ResumeService → PDFBox → analysis logic → response.
+
+Deliverable: Architecture diagram + API contract (endpoint, params, sample response).
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 4 — Project Scaffolding & Environment Setup
+────────────────────────────────────────────────────────────────────────────────
+Goal: Create a runnable empty Spring Boot project.
+
+Tasks:
+  • Generate Spring Boot project (Spring Initializr or IDE wizard).
+  • Set groupId: com.resume.analyzer, main class: BackendApplication.
+  • Add dependencies in pom.xml:
+      - spring-boot-starter-web
+      - spring-boot-starter-data-jpa (optional)
+      - spring-boot-starter-validation
+      - spring-boot-starter-actuator
+      - pdfbox 2.0.30
+      - lombok, mysql-connector-j, spring-boot-devtools
+  • Create package structure:
+      com.resume.analyzer/
+        ├── controller/
+        ├── service/
+        ├── model/        (optional)
+        └── repository/   (optional)
+  • Configure application.properties (server port 8080, DB if used).
+  • Add .gitignore, verify mvnw runs and app starts on localhost:8080.
+
+Deliverable: Empty Spring Boot app that boots without errors.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 5 — REST API & Controller Layer
+────────────────────────────────────────────────────────────────────────────────
+Goal: Expose the upload endpoint and wire it to a service stub.
+
+Tasks:
+  • Create ResumeController with @RestController and @RequestMapping("/resume").
+  • Add POST /resume/upload accepting:
+      @RequestParam("file") MultipartFile file
+      @RequestParam("role") String role
+  • Create ResumeService with a stub processResume() that returns a placeholder string.
+  • Autowire service into controller; return ResponseEntity.ok(result).
+  • Test with Postman: send a PDF + role, confirm 200 response.
+
+Deliverable: Working upload endpoint (logic can be stubbed).
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 6 — PDF Resume Upload & Text Extraction
+────────────────────────────────────────────────────────────────────────────────
+Goal: Read uploaded PDF and extract raw text.
+
+Tasks:
+  • In ResumeService.processResume():
+      - Get InputStream from MultipartFile
+      - Load PDDocument with PDFBox
+      - Use PDFTextStripper to extract full text
+      - Close document in try/finally or try-with-resources
+  • Handle errors (invalid file, corrupt PDF) with a clear error message.
+  • Log or temporarily return extracted text to verify parsing works.
+
+Deliverable: Service reliably converts any valid PDF resume into a plain-text string.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 7 — Skill Extraction & Resume Scoring
+────────────────────────────────────────────────────────────────────────────────
+Goal: Detect skills and compute an overall resume score.
+
+Tasks:
+  • Implement extractSkills(text):
+      - Lowercase the text; scan for keywords: java, spring, sql, html, css, javascript
+      - Return a List<String> of matched skills (e.g. "Java", "Spring Boot", "SQL")
+  • Implement calculateScore(skills):
+      - Weighted points: Java +20, Spring Boot +20, SQL +20, JavaScript +20,
+        HTML +10, CSS +10  (max 100)
+  • Implement getSuggestions(skills):
+      - For each missing skill, add a learning recommendation
+      - If fewer than 3 skills found, suggest adding real-world projects
+  • Wire into processResume() and include in the response string.
+
+Deliverable: Skills list, numeric score, and general suggestions returned from any resume text.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 8 — ATS Keyword Analysis
+────────────────────────────────────────────────────────────────────────────────
+Goal: Measure how well the resume matches common ATS keywords.
+
+Tasks:
+  • Define getATSKeywords(): java, spring, spring boot, rest api, microservices,
+    mysql, sql, hibernate, docker, kubernetes, aws, javascript, html, css
+  • Implement checkATSScore(text):
+      - Count how many keywords appear in lowercased text
+      - ATS Score = (matchCount / totalKeywords) * 100
+      - List missing keywords
+  • Append ATS result to processResume() output.
+
+Deliverable: ATS score percentage and missing keyword list per upload.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 9 — Job Role Matching
+────────────────────────────────────────────────────────────────────────────────
+Goal: Compare detected skills against a target job role.
+
+Tasks:
+  • Define jobRoles() map:
+      - "Java Developer"     → Java, Spring Boot, SQL
+      - "Full Stack Developer" → Java, JavaScript, HTML, CSS
+      - "Data Analyst"       → SQL, Python, Excel
+  • Implement matchJobRole(skills, role):
+      - Count matched vs required skills
+      - Match Score = (matchCount / required.size()) * 100
+      - List missing skills for that role
+  • Accept role from the upload form; append match result to response.
+
+Deliverable: Role-specific match % and missing skills for the three supported roles.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 10 — Resume Section Detection & Career Roadmap
+────────────────────────────────────────────────────────────────────────────────
+Goal: Check resume structure and generate role-based improvement advice.
+
+Tasks:
+  • Implement detectSections(text):
+      - Scan for headings/keywords: "skills", "education", "experience"
+      - Return Found ✅ or Missing ❌ for each section
+  • Implement getJobSuggestions(skills, role):
+      - Java Developer: Spring Boot, SQL, Java fundamentals, backend project tips
+      - Full Stack Developer: JavaScript, HTML/CSS, full stack project tips
+      - Data Analyst: Python, SQL, data visualization, real datasets
+  • Combine section result + career roadmap into final processResume() output.
+
+Deliverable: Section checklist and "Career Roadmap for {role}" suggestions.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 11 — Frontend Dashboard UI
+────────────────────────────────────────────────────────────────────────────────
+Goal: Build an interactive single-page UI that calls the backend and visualizes results.
+
+Tasks:
+  • Create src/main/resources/static/index.html.
+  • Design layout: navbar, hero upload area, job-role dropdown, results dashboard.
+  • Style with CSS: dark theme, gradient background, glassmorphism cards, animations.
+  • Add JavaScript:
+      - FormData with file + role → fetch POST /resume/upload
+      - Parse response text into skills, score, ATS, sections, roadmap
+      - Render results in styled cards
+  • Integrate Chart.js: doughnut or bar chart for score breakdown.
+  • Test full flow in browser at http://localhost:8080/
+
+Deliverable: Polished dashboard that uploads a PDF and displays all analysis results.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 12 — Testing & Integration
+────────────────────────────────────────────────────────────────────────────────
+Goal: Verify everything works end-to-end and edge cases are handled.
+
+Tasks:
+  • Write BackendApplicationTests (context loads).
+  • Manual test matrix:
+      - Valid PDF with all sections → high score
+      - PDF missing skills → lower score + suggestions appear
+      - Each job role selected → correct match logic
+      - Non-PDF or empty file → graceful error
+  • Test API with Postman (file upload + role param).
+  • Cross-check UI parsing matches backend output format.
+  • Fix any null-pointer risks (e.g. unknown role in jobRoles map).
+  • Optional: add Resume entity + ResumeRepository if persisting upload history.
+
+Deliverable: Stable app with no crashes on common inputs; test notes or unit tests.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHASE 13 — Documentation
+────────────────────────────────────────────────────────────────────────────────
+Goal: Document the project so others (or future you) can run and understand it.
+
+Tasks:
+  • Write README.md with:
+      - Project title and one-line description
+      - Feature list (with emoji icons optional)
+      - Tech stack (backend, frontend, tools)
+      - Project structure tree
+      - How to run: clone → open IDE → run BackendApplication → open localhost:8080
+      - How it works (9-step pipeline from upload to dashboard)
+      - Sample output example
+      - Future enhancements (deploy, React, OpenAI, auth)
+      - Author / license / star request
+  • Add inline code comments only where logic is non-obvious (scoring weights, role map).
+  • Optional: API section in README for Postman users.
+  • Commit with a clean .gitignore (exclude target/, .idea/, etc.).
+
+Deliverable: Complete README.md and a repo ready to share on GitHub.
+
+
+────────────────────────────────────────────────────────────────────────────────
+QUICK REFERENCE — Phase Order
+────────────────────────────────────────────────────────────────────────────────
+  1.  Idea & Problem Definition
+  2.  Feature Planning & Requirements
+  3.  Tech Stack & Architecture Design
+  4.  Project Scaffolding & Environment Setup
+  5.  REST API & Controller Layer
+  6.  PDF Resume Upload & Text Extraction
+  7.  Skill Extraction & Resume Scoring
+  8.  ATS Keyword Analysis
+  9.  Job Role Matching
+  10. Resume Section Detection & Career Roadmap
+  11. Frontend Dashboard UI
+  12. Testing & Integration
+  13. Documentation
